@@ -1,75 +1,76 @@
 
+
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
-#include <iostream>
 #include <utility>
-
 #include <iostream>
-#include <stdio.h>
+//#include <stdio.h>
 
 using namespace cv;
 using namespace std;
 
-cv::RNG rng(12345);
-cv::Scalar MY_RED (0, 0, 255);
-cv::Scalar MY_BLUE (255, 0, 0);
-cv::Scalar MY_GREEN (0, 255, 0);
-cv::Scalar MY_PURPLE (255, 0, 255);
-cv::Scalar GUIDE_DOT(255,255,0);
-cv::Point TEST_POINT(120,120);
+RNG rng(12345);
+Scalar MY_RED (0, 0, 255);
+Scalar MY_BLUE (255, 0, 0);
+Scalar MY_GREEN (0, 255, 0);
+Scalar MY_PURPLE (255, 0, 255);
+Scalar GUIDE_DOT(255,255,0);
+Point TEST_POINT(120,120);
 
 const int RES_X = 640, RES_Y = 480;
 const int MIN_HUE = 68, MAX_HUE = 180;
 const int MIN_SAT = 140, MAX_SAT = 255;
 const int MIN_VAL = 0, MAX_VAL = 255;
 
-typedef std::vector<cv::Point> contour_type;
+typedef std::vector<Point> contour_type;
 
 const double
 MIN_AREA = 0.001, MAX_AREA = 1000000,
 MIN_WIDTH = 0, MAX_WIDTH = 100000, //rectangle width
-MIN_HEIGHT = 101, MAX_HEIGHT = 100000, //rectangle height
+MIN_HEIGHT = 50, MAX_HEIGHT = 100000, //rectangle height
 MIN_RECT_RAT = 0.1, MAX_RECT_RAT = 10, //rect height / rect width
-MIN_AREA_RAT = 0.85, MAX_AREA_RAT = 100; //cvxhull area / contour area
+MIN_AREA_RAT = 0.85, MAX_AREA_RAT = 100,
+BLUR = 25; //cvxhull area / contour area
 
 
 
-inline int getHue (cv::Mat &img, int r, int c) {
-    return img.at<cv::Vec3b>(r, c)[0];
+inline int getHue ( Mat &img, int r, int c) {
+    return img.at< Vec3b>(r, c)[0];
 }
 
-inline int getSat (cv::Mat &img, int r, int c) {
-    return img.at<cv::Vec3b>(r, c)[1];
+inline int getSat ( Mat &img, int r, int c) {
+    return img.at< Vec3b>(r, c)[1];
 }
 
-inline int getVal (cv::Mat &img, int r, int c) {
-    return img.at<cv::Vec3b>(r, c)[2];
+inline int getVal ( Mat &img, int r, int c) {
+    return img.at< Vec3b>(r, c)[2];
 }
 
 bool is_valid (contour_type &contour) {
     bool valid = true; //start out assuming its valid, disprove this later
     
     //find bounding rect & convex hull
-    cv::Rect rect = cv::boundingRect(contour);
+     Rect rect =  boundingRect(contour);
     contour_type hull;
     cv::convexHull(contour, hull);
     
     double totalArea = (RES_X * RES_Y);
     
     //calculate relevant ratios & values
-    double area = cv::contourArea(contour) / totalArea;
-    //double perim = cv::arcLength(hull, true);
+    double area =  contourArea(contour) / totalArea;
+    //double perim =  arcLength(hull, true);
     
-    double convex_area = cv::contourArea(hull) / totalArea;
+    double convex_area =  contourArea(hull) / totalArea;
     
     double width = rect.width, height = rect.height;
     
     double area_rat = area / convex_area;
     double rect_rat = height / width;
+
     
     //check ratios & values for validity
     if (area < MIN_AREA || area > MAX_AREA) valid = false;
@@ -78,16 +79,21 @@ bool is_valid (contour_type &contour) {
     if (width < MIN_WIDTH || width > MAX_WIDTH) valid = false;
     if (height < MIN_HEIGHT || height > MAX_HEIGHT) valid = false;
     
+    if (valid) {
+        cout << "HEIGHT: ";
+        cout <<height <<endl;
+    }
+    
     //valid = true; //for the sake of testing assume all contours are valid.
     return valid;
 }
 
-void calculate(const cv::Mat &bgr, cv::Mat &processedImage){
+void calculate(const Mat &bgr, Mat &processedImage){
     //blur the image
-    cv::blur(bgr, bgr, cv::Size(5,5));
-    cv::Mat hsvMat;
+    blur(bgr, processedImage, Size(BLUR, BLUR));
+    Mat hsvMat;
     //convert to hsv
-    cv::cvtColor(bgr, hsvMat, cv::COLOR_BGR2HSV);
+    cvtColor(processedImage, hsvMat, COLOR_BGR2HSV);
     
     //store HSV values at a given test point to send back
     int hue = getHue(hsvMat, TEST_POINT.x, TEST_POINT.y);
@@ -95,15 +101,15 @@ void calculate(const cv::Mat &bgr, cv::Mat &processedImage){
     int val = getVal(hsvMat, TEST_POINT.x, TEST_POINT.y);
     
     //threshold on green (light ring color)
-    cv::Mat greenThreshed;
-    cv::inRange(hsvMat,
-                cv::Scalar(MIN_HUE, MIN_SAT, MIN_VAL),
-                cv::Scalar(MAX_HUE, MAX_SAT, MAX_VAL),
+    Mat greenThreshed;
+    inRange(hsvMat,
+                Scalar(MIN_HUE, MIN_SAT, MIN_VAL),
+                Scalar(MAX_HUE, MAX_SAT, MAX_VAL),
                 greenThreshed);
     
     processedImage = greenThreshed.clone();
-    cv::threshold (processedImage, processedImage, 0, 255, cv::THRESH_BINARY);
-    cv::cvtColor(processedImage, processedImage, CV_GRAY2BGR);
+    threshold (processedImage, processedImage, 0, 255, THRESH_BINARY);
+    cvtColor(processedImage, processedImage, CV_GRAY2BGR);
     
     imshow("Processed", processedImage);
 
@@ -113,10 +119,10 @@ void calculate(const cv::Mat &bgr, cv::Mat &processedImage){
     
     //contour detection
     vector<contour_type> contours;
-    vector<cv::Vec4i> hierarchy; //throwaway, needed for function
+    vector<Vec4i> hierarchy; //throwaway, needed for function
     try {
-        cv::findContours (greenThreshed, contours, hierarchy,
-                          cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+        findContours (greenThreshed, contours, hierarchy,
+                          RETR_TREE, CHAIN_APPROX_SIMPLE);
     }
     catch (...) { //TODO: change this to the error that occurs when there are no contours
         cout << "No contours";
@@ -142,14 +148,14 @@ void calculate(const cv::Mat &bgr, cv::Mat &processedImage){
     printf ("Num contours: %d\n", numContours);
     
     if (numContours < 1) { //definitely did not find
-        printf("DID NOT FIND CONTOUR");
+        //printf("DID NOT FIND CONTOUR");
     }
     
     //find the largest contour in the image
     contour_type largest;
     double largestArea = 0;
     for (int i = 0; i < numContours; i++){
-        double curArea = cv::contourArea(valid_contour_hulls[i], true);
+        double curArea = contourArea(valid_contour_hulls[i], true);
         if (curArea > largestArea){
             largestArea = curArea;
             largest = valid_contour_hulls[i];
@@ -157,11 +163,11 @@ void calculate(const cv::Mat &bgr, cv::Mat &processedImage){
     }
     
     //get the points of corners
-    vector<cv::Point> all_points;
+    vector<Point> all_points;
     all_points.insert (all_points.end(), largest.begin(), largest.end());
     
     //find which corner is which
-    cv::Point ul (1000, 1000), ur (0, 1000), ll (1000, 0), lr (0, 0);
+    Point ul (1000, 1000), ur (0, 1000), ll (1000, 0), lr (0, 0);
     for (int i = 0; i < (int)all_points.size(); i++) {
         int sum = all_points[i].x + all_points[i].y;
         int dif = all_points[i].x - all_points[i].y;
@@ -184,14 +190,14 @@ void calculate(const cv::Mat &bgr, cv::Mat &processedImage){
     }
     
     //find the center of mass of the largest contour
-    cv::Moments centerMass = cv::moments(largest, true);
+    Moments centerMass = moments(largest, true);
     double centerX = (centerMass.m10) / (centerMass.m00);
     double centerY = (centerMass.m01) / (centerMass.m00);
-    cv::Point center (centerX, centerY);
+    Point center (centerX, centerY);
     
     vector<contour_type> largestArr;
     largestArr.push_back(largest);
-    //cv::drawContours(processedImage, largestArr , 0, MY_GREEN, 2);
+    //drawContours(processedImage, largestArr , 0, MY_GREEN, 2);
     
     double top_width = ur.x - ul.x;
     double bottom_width = lr.x - ll.x;
@@ -199,12 +205,12 @@ void calculate(const cv::Mat &bgr, cv::Mat &processedImage){
     double right_height = lr.y - ur.y;
     
     double angle = (centerX * top_width);
-    
-    cout << "CENTER X: ";
-    cout << centerX << endl;
-    cout << "CENTER Y: ";
-    cout <<centerY <<endl;
-    
+        if (numContours >= 1) {
+            cout << "CENTER X: ";
+            cout << centerX << endl;
+            cout << "CENTER Y: ";
+            cout <<centerY <<endl;
+    }
     
     //create the results package
     
