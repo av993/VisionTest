@@ -264,7 +264,6 @@
 					"-lopencv_video",
 					"-lopencv_videoio",
 					"-lopencv_videostab",
-					"-frameworkCoreFoundation",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REZ_SEARCH_PATHS = "";
@@ -297,7 +296,6 @@
 					"-lopencv_video",
 					"-lopencv_videoio",
 					"-lopencv_videostab",
-					"-frameworkCoreFoundation",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REZ_SEARCH_PATHS = "";
